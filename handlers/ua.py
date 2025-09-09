@@ -2,15 +2,12 @@ from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.filters import CommandStart
 from aiogram.fsm.context import FSMContext
-import logging
 
 from db.database import (
-    init_db,
     upsert_parent,
     set_parent_name_and_verify,
     get_parent,
     add_child,
-    get_parent_children,
 )
 from keyboards.common import (
     start_menu,
@@ -19,11 +16,8 @@ from keyboards.common import (
     ConfirmCB,
     class_list_kb,
     ClassCB,
-    children_kb,
-    ChildCB,
 )
-from states.ua_states import ParentReg, ChildReg, Order
-from config import ORDER_LINK
+from states.ua_states import ParentReg, ChildReg
 
 
 router = Router()
@@ -35,38 +29,6 @@ WELCOME = "\n".join(
         "Наприклад: <b>Атанасова Марiя</b>",
     ]
 )
-
-
-ORDER_TXT = "\n".join(
-    [
-        "<b>Оберіть тиждень</b> у випадаючому списку, а нижче — відмітьте позиції:",
-        "• Сніданок (солоний / солодкий) — оберіть лише один варіант",
-        "• Обід",
-        "• Полуденок",
-        "",
-        "Ціни:",
-        "— Комплекс (солодкий або солоний) — 300 грн",
-        "— Сніданок + Обід (з обов’язковим вибором виду сніданку) — 250 грн",
-        "— Обід + Полуденок — 200 грн",
-        "— Обід — 150 грн",
-    ]
-)
-
-
-async def _send_order_link(
-    m: Message, child_name: str | None = None, all_children: bool = False
-):
-    if not ORDER_LINK:
-        await m.answer(
-            "Посилання на замовлення ще не налаштовано. Додайте ORDER_LINK у .env"
-        )
-        return
-    if child_name:
-        await m.answer(f"Формуємо замовлення для <b>{child_name}</b>.")
-    elif all_children:
-        await m.answer("Формуємо однакове замовлення для всіх дітей.")
-    await m.answer(ORDER_TXT)
-    await m.answer(f"Відкрити форму замовлення: {ORDER_LINK}")
 
 
 @router.message(CommandStart())
@@ -171,42 +133,4 @@ async def child_all_confirm(call: CallbackQuery, callback_data: ConfirmCB, state
         await state.set_state(ChildReg.choose_class)
         await call.message.edit_reply_markup(reply_markup=class_list_kb())
 
-
-# --- Ordering ---
-@router.message(F.text.casefold() == "замовлення")
-async def order_link(m: Message, state: FSMContext):
-    p = get_parent(m.from_user.id)
-    if not p or not p["verified"]:
-        await m.answer("Спочатку завершіть реєстрацію батьків (кнопка «Розпочати»).")
-        return
-    children = get_parent_children(p["id"])
-    logging.debug("Fetched %d children for parent %s", len(children), p["id"])
-    if len(children) == 0:
-        await m.answer("Спочатку зареєструйте дитину.")
-    elif len(children) == 1:
-        await _send_order_link(m, children[0]["full_name"])
-    else:
-        logging.debug("Multiple children found, prompting selection: %s", [c["id"] for c in children])
-        await state.set_state(Order.choose_child)
-        await m.answer("Оберіть дитину:", reply_markup=children_kb(children))
-
-
-@router.callback_query(ChildCB.filter(), Order.choose_child)
-async def child_chosen(call: CallbackQuery, callback_data: ChildCB, state: FSMContext):
-    p = get_parent(call.from_user.id)
-    children = get_parent_children(p["id"]) if p else []
-    logging.debug("Available children for parent %s: %s", p["id"] if p else None, [c["id"] for c in children])
-    if callback_data.id == -1:
-        logging.info("All children selected for identical order")
-        await state.clear()
-        await call.message.edit_reply_markup()
-        await _send_order_link(call.message, all_children=True)
-        return
-
-    child = next((c for c in children if c["id"] == callback_data.id), None)
-    assert child is not None, f"Child with id {callback_data.id} not found"
-    logging.info("Child chosen: %s (%d)", child["full_name"], child["id"])
-    await state.clear()
-    await call.message.edit_reply_markup()
-    await _send_order_link(call.message, child["full_name"])
 
