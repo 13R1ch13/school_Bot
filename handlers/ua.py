@@ -143,8 +143,6 @@ async def class_chosen(call: CallbackQuery, callback_data: ClassCB, state: FSMCo
 @router.callback_query(ConfirmCB.filter(), ChildReg.confirm_child_all)
 async def child_all_confirm(call: CallbackQuery, callback_data: ConfirmCB, state: FSMContext):
     if callback_data.ok == 1:
-        from db.database import get_parent
-
         p = get_parent(call.from_user.id)
         d = await state.get_data()
         if p:
