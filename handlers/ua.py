@@ -2,6 +2,7 @@ from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.filters import CommandStart
 from aiogram.fsm.context import FSMContext
+import logging
 
 from db.database import (
     init_db,
@@ -175,11 +176,13 @@ async def order_link(m: Message, state: FSMContext):
         await m.answer("Спочатку завершіть реєстрацію батьків (кнопка «Розпочати»).")
         return
     children = get_parent_children(p["id"])
+    logging.debug("Fetched %d children for parent %s", len(children), p["id"])
     if len(children) == 0:
         await m.answer("Спочатку зареєструйте дитину.")
     elif len(children) == 1:
         await _send_order_link(m, children[0]["full_name"])
     else:
+        logging.debug("Multiple children found, prompting selection: %s", [c["id"] for c in children])
         await state.set_state(Order.choose_child)
         await m.answer("Оберіть дитину:", reply_markup=children_kb(children))
 
@@ -188,8 +191,11 @@ async def order_link(m: Message, state: FSMContext):
 async def child_chosen(call: CallbackQuery, callback_data: ChildCB, state: FSMContext):
     p = get_parent(call.from_user.id)
     children = get_parent_children(p["id"]) if p else []
+    logging.debug("Available children for parent %s: %s", p["id"] if p else None, [c["id"] for c in children])
     child = next((c for c in children if c["id"] == callback_data.id), None)
+    assert child is not None, f"Child with id {callback_data.id} not found"
+    logging.info("Child chosen: %s (%d)", child["full_name"], child["id"])
     await state.clear()
     await call.message.edit_reply_markup()
-    await _send_order_link(call.message, child["full_name"] if child else None)
+    await _send_order_link(call.message, child["full_name"])
 
