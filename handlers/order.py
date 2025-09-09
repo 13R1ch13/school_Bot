@@ -1,7 +1,6 @@
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
-from aiogram.fsm.state import StatesGroup, State
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from db.database import (
@@ -15,16 +14,9 @@ from keyboards.common import (
     confirm_kb,
     ConfirmCB,
 )
+from states.order_states import OrderStates
 
 router = Router()
-
-
-class OrderStates(StatesGroup):
-    choose_child = State()
-    choosing_week = State()
-    choosing_day = State()
-    choosing_meal = State()
-    confirming = State()
 
 
 WEEKS = [
