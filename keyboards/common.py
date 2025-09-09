@@ -43,11 +43,25 @@ class ChildCB(CallbackData, prefix="ch"):
 
 
 def children_kb(children: Iterable[Mapping]):
-    """Construct inline keyboard with children list ensuring proper callback data."""
+    """Construct inline keyboard with a list of children.
+
+    The input items might be :class:`sqlite3.Row` objects or plain dictionaries.
+    ``sqlite3.Row`` does not support membership testing for keys, so each item is
+    converted to a ``dict`` and validated explicitly.
+    """
+
     b = InlineKeyboardBuilder()
     for ch in children:
-        # Ensure each child dict contains required fields before building button
-        assert "id" in ch and "full_name" in ch, "child record must have id and full_name"
-        b.button(text=ch["full_name"], callback_data=ChildCB(id=ch["id"]).pack())
+        # ``sqlite3.Row`` behaves like both a sequence and a mapping, but "in" checks
+        # values rather than column names.  Convert the record to a plain ``dict``
+        # and ensure the required fields are present before constructing the button.
+        ch_dict = dict(ch)
+        assert {"id", "full_name"}.issubset(ch_dict.keys()), (
+            "child record must have id and full_name"
+        )
+        b.button(
+            text=ch_dict["full_name"],
+            callback_data=ChildCB(id=ch_dict["id"]).pack(),
+        )
     b.adjust(1)
     return b.as_markup()
