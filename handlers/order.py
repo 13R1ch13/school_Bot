@@ -4,6 +4,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
+from config import WEEKS
 from db.database import (
     get_parent,
     get_parent_children,
@@ -25,14 +26,6 @@ class OrderStates(StatesGroup):
     choosing_day = State()
     choosing_meal = State()
     confirming = State()
-
-
-WEEKS = [
-    ("Тиждень 1", "01.09.2025 – 05.09.2025"),
-    ("Тиждень 2", "08.09.2025 – 12.09.2025"),
-    ("Тиждень 3", "15.09.2025 – 19.09.2025"),
-    ("Тиждень 4", "22.09.2025 – 26.09.2025"),
-]
 
 DAYS = ["Понеділок", "Вівторок", "Середа", "Четвер", "П'ятниця"]
 
