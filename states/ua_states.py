@@ -12,5 +12,8 @@ class ChildReg(StatesGroup):
     confirm_child_all = State()
 
 
-class Order(StatesGroup):
-    choose_child = State()
+class OrderStates(StatesGroup):
+    choosing_week = State()
+    choosing_day = State()
+    choosing_meal = State()
+    confirming = State()
