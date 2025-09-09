@@ -17,6 +17,7 @@ from handlers.order import (
     confirm_order,
 )
 from keyboards.common import ChildCB, ConfirmCB
+from week_config import WEEKS, get_week_menu
 
 
 class DummyMessage:
@@ -105,7 +106,8 @@ def test_confirmation_text(monkeypatch):
         cb = DummyCallbackQuery("dm_0_0", message)
         await day_meal_chosen(cb, fsm)
 
-        assert message.answers[-1] == f"<b>{order.WEEKS[0][0]}</b>\\n{order.DAYS[0]} — {order.MEALS[0]}"
+        assert message.answers[-2] == get_week_menu(0)
+        assert message.answers[-1] == f"<b>{WEEKS[0][0]}</b>\\n{order.DAYS[0]} — {order.MEALS[0]}"
 
     asyncio.run(scenario())
 

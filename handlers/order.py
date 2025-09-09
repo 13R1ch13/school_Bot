@@ -15,16 +15,10 @@ from keyboards.common import (
     ConfirmCB,
 )
 from states.order_states import OrderStates
+from week_config import WEEKS, get_current_week, get_week_menu
 
 router = Router()
 
-
-WEEKS = [
-    ("Тиждень 1", "01.09.2025 – 05.09.2025"),
-    ("Тиждень 2", "08.09.2025 – 12.09.2025"),
-    ("Тиждень 3", "15.09.2025 – 19.09.2025"),
-    ("Тиждень 4", "22.09.2025 – 26.09.2025"),
-]
 
 DAYS = ["Понеділок", "Вівторок", "Середа", "Четвер", "П'ятниця"]
 DAYS_SHORT = ["Пн", "Вт", "Ср", "Чт", "Пт"]
@@ -65,8 +59,10 @@ async def child_chosen(call: CallbackQuery, callback_data: ChildCB, state: FSMCo
 
 async def _ask_week(message: Message, state: FSMContext):
     builder = InlineKeyboardBuilder()
+    current_idx = get_current_week()
     for i, (label, _) in enumerate(WEEKS):
-        builder.button(text=label, callback_data=f"week_{i}")
+        text = label + (" (поточний)" if i == current_idx else "")
+        builder.button(text=text, callback_data=f"week_{i}")
     builder.adjust(2)
     await state.set_state(OrderStates.choosing_week)
     await message.answer("📆 Оберіть тиждень:", reply_markup=builder.as_markup())
@@ -75,7 +71,7 @@ async def _ask_week(message: Message, state: FSMContext):
 @router.callback_query(F.data.startswith("week_"), OrderStates.choosing_week)
 async def week_chosen(callback: CallbackQuery, state: FSMContext):
     week_index = int(callback.data.split("_")[1])
-    await state.update_data(week=WEEKS[week_index][0])
+    await state.update_data(week=WEEKS[week_index][0], week_index=week_index)
     builder = InlineKeyboardBuilder()
     for day_idx, day_short in enumerate(DAYS_SHORT):
         for meal_idx, meal_label in enumerate(MEALS):
@@ -94,8 +90,10 @@ async def day_meal_chosen(callback: CallbackQuery, state: FSMContext):
     meal_index = int(meal_idx)
     await state.update_data(day=DAYS[day_index], meal=MEALS[meal_index])
     data = await state.get_data()
+    menu_text = get_week_menu(data.get("week_index", 0))
     summary = f"<b>{data.get('week')}</b>\\n{data.get('day')} — {data.get('meal')}"
     await state.set_state(OrderStates.confirming)
+    await callback.message.answer(menu_text)
     await callback.message.answer(summary, reply_markup=confirm_kb())
     await callback.answer()
 
