@@ -53,7 +53,9 @@ ORDER_TXT = "\n".join(
 )
 
 
-async def _send_order_link(m: Message, child_name: str | None = None):
+async def _send_order_link(
+    m: Message, child_name: str | None = None, all_children: bool = False
+):
     if not ORDER_LINK:
         await m.answer(
             "Посилання на замовлення ще не налаштовано. Додайте ORDER_LINK у .env"
@@ -61,6 +63,8 @@ async def _send_order_link(m: Message, child_name: str | None = None):
         return
     if child_name:
         await m.answer(f"Формуємо замовлення для <b>{child_name}</b>.")
+    elif all_children:
+        await m.answer("Формуємо однакове замовлення для всіх дітей.")
     await m.answer(ORDER_TXT)
     await m.answer(f"Відкрити форму замовлення: {ORDER_LINK}")
 
@@ -192,6 +196,13 @@ async def child_chosen(call: CallbackQuery, callback_data: ChildCB, state: FSMCo
     p = get_parent(call.from_user.id)
     children = get_parent_children(p["id"]) if p else []
     logging.debug("Available children for parent %s: %s", p["id"] if p else None, [c["id"] for c in children])
+    if callback_data.id == -1:
+        logging.info("All children selected for identical order")
+        await state.clear()
+        await call.message.edit_reply_markup()
+        await _send_order_link(call.message, all_children=True)
+        return
+
     child = next((c for c in children if c["id"] == callback_data.id), None)
     assert child is not None, f"Child with id {callback_data.id} not found"
     logging.info("Child chosen: %s (%d)", child["full_name"], child["id"])
