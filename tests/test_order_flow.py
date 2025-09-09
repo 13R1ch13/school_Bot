@@ -19,6 +19,19 @@ from handlers.order import (
 from keyboards.common import ChildCB, ConfirmCB
 
 
+FAKE_WEEKS = [
+    ("Week 1", "01.01.2025 – 05.01.2025"),
+    ("Week 2", "06.01.2025 – 10.01.2025"),
+    ("Week 3", "13.01.2025 – 17.01.2025"),
+]
+
+
+def fake_get_current_week(override_week=None):
+    if override_week is not None:
+        return [FAKE_WEEKS[override_week]]
+    return FAKE_WEEKS
+
+
 class DummyMessage:
     def __init__(self):
         self.answers = []
@@ -71,6 +84,8 @@ def test_order_state_transitions(monkeypatch):
 
         monkeypatch.setattr(order, "get_parent", lambda user_id: {"id": 1})
         monkeypatch.setattr(order, "get_parent_children", lambda parent_id: [{"id": 5}])
+        monkeypatch.setattr(order, "get_current_week", fake_get_current_week, raising=False)
+        monkeypatch.setattr(order, "WEEKS", fake_get_current_week())
 
         cb = DummyCallbackQuery("", message)
         await child_chosen(cb, ChildCB(id=5), fsm)
@@ -79,6 +94,7 @@ def test_order_state_transitions(monkeypatch):
         cb = DummyCallbackQuery("week_0", message)
         await week_chosen(cb, fsm)
         assert fsm.state == OrderStates.choosing_day_meal
+        assert message.answers[-1] == "🗓 Оберіть день та прийом їжі:"
 
         cb = DummyCallbackQuery("dm_0_0", message)
         await day_meal_chosen(cb, fsm)
@@ -97,6 +113,8 @@ def test_confirmation_text(monkeypatch):
 
         monkeypatch.setattr(order, "get_parent", lambda user_id: {"id": 1})
         monkeypatch.setattr(order, "get_parent_children", lambda parent_id: [{"id": 5}])
+        monkeypatch.setattr(order, "get_current_week", fake_get_current_week, raising=False)
+        monkeypatch.setattr(order, "WEEKS", fake_get_current_week())
 
         cb = DummyCallbackQuery("", message)
         await child_chosen(cb, ChildCB(id=5), fsm)
@@ -105,7 +123,34 @@ def test_confirmation_text(monkeypatch):
         cb = DummyCallbackQuery("dm_0_0", message)
         await day_meal_chosen(cb, fsm)
 
-        assert message.answers[-1] == f"<b>{order.WEEKS[0][0]}</b>\\n{order.DAYS[0]} — {order.MEALS[0]}"
+        expected_week = order.get_current_week()[0][0]
+        assert message.answers[-1] == f"<b>{expected_week}</b>\\n{order.DAYS[0]} — {order.MEALS[0]}"
+
+    asyncio.run(scenario())
+
+
+def test_override_week(monkeypatch):
+    """Selecting a different week via override should update the summary."""
+
+    async def scenario():
+        fsm = DummyFSM()
+        fsm.state = OrderStates.choose_child
+        message = DummyMessage()
+
+        monkeypatch.setattr(order, "get_parent", lambda user_id: {"id": 1})
+        monkeypatch.setattr(order, "get_parent_children", lambda parent_id: [{"id": 5}])
+        monkeypatch.setattr(order, "get_current_week", fake_get_current_week, raising=False)
+        monkeypatch.setattr(order, "WEEKS", fake_get_current_week(override_week=1))
+
+        cb = DummyCallbackQuery("", message)
+        await child_chosen(cb, ChildCB(id=5), fsm)
+        cb = DummyCallbackQuery("week_0", message)
+        await week_chosen(cb, fsm)
+        cb = DummyCallbackQuery("dm_0_0", message)
+        await day_meal_chosen(cb, fsm)
+
+        expected_week = order.get_current_week(override_week=1)[0][0]
+        assert message.answers[-1] == f"<b>{expected_week}</b>\\n{order.DAYS[0]} — {order.MEALS[0]}"
 
     asyncio.run(scenario())
 
