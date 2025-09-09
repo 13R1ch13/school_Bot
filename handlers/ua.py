@@ -78,6 +78,11 @@ async def btn_start(m: Message, state: FSMContext):
 @router.message(ParentReg.waiting_parent_name)
 async def parent_name_entered(m: Message, state: FSMContext):
     full = m.text.strip()
+    if len(full.split()) < 2:
+        await m.answer(
+            "Введіть, будь ласка, Прізвище та Ім'я повністю (напр.: <b>Атанасова Марiя</b>)."
+        )
+        return
     await state.update_data(parent_full=full)
     await state.set_state(ParentReg.confirm_parent)
     await m.answer(f"Вас звати <b>{full}</b>?", reply_markup=confirm_kb())
