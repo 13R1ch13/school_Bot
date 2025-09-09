@@ -10,3 +10,7 @@ class ChildReg(StatesGroup):
     confirm_child_name = State()
     choose_class = State()
     confirm_child_all = State()
+
+
+class Order(StatesGroup):
+    choose_child = State()

@@ -35,3 +35,15 @@ def class_list_kb():
         b.button(text=l, callback_data=ClassCB(label=l).pack())
     b.adjust(2)
     return b.as_markup()
+
+
+class ChildCB(CallbackData, prefix="ch"):
+    id: int
+
+
+def children_kb(children):
+    b = InlineKeyboardBuilder()
+    for ch in children:
+        b.button(text=ch["full_name"], callback_data=ChildCB(id=ch["id"]).pack())
+    b.adjust(1)
+    return b.as_markup()
