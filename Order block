@@ -1,0 +1,60 @@
+# 📦 Блок для интеграции в Telegram-бота (aiogram 3.x)
+# Этот блок реализует пошаговый выбор питания на неделю
+
+from aiogram import Router, F
+from aiogram.types import Message, CallbackQuery
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import StatesGroup, State
+from aiogram.utils.keyboard import InlineKeyboardBuilder
+
+router = Router()
+
+# 📘 Шаги выбора
+class OrderStates(StatesGroup):
+    choosing_week = State()
+    choosing_day = State()
+    choosing_meal = State()
+    confirming = State()
+
+# 📆 Полный список недель (взятый из скрина)
+WEEKS = [
+    ("Тиждень 1", "01.09.2025 – 05.09.2025"),
+    ("Тиждень 2", "08.09.2025 – 12.09.2025"),
+    ("Тиждень 3", "15.09.2025 – 19.09.2025"),
+    ("Тиждень 4", "22.09.2025 – 26.09.2025"),
+    ("Тиждень 5", "29.09.2025 – 03.10.2025"),
+    ("Тиждень 6", "06.10.2025 – 10.10.2025"),
+    ("Тиждень 7", "13.10.2025 – 17.10.2025"),
+    ("Тиждень 8", "20.10.2025 – 24.10.2025"),
+    ("Тиждень 9", "27.10.2025 – 31.10.2025"),
+    ("Тиждень 10", "03.11.2025 – 07.11.2025"),
+    ("Тиждень 11", "10.11.2025 – 14.11.2025"),
+    ("Тиждень 12", "17.11.2025 – 21.11.2025"),
+    ("Тиждень 13", "24.11.2025 – 28.11.2025"),
+    ("Тиждень 14", "01.12.2025 – 05.12.2025"),
+    ("Тиждень 15", "08.12.2025 – 12.12.2025"),
+    ("Тиждень 16", "15.12.2025 – 19.12.2025"),
+    ("Тиждень 17", "22.12.2025 – 26.12.2025"),
+    ("Тиждень 18", "29.12.2025 – 31.12.2025")
+]
+
+DAYS = ["Понеділок", "Вівторок", "Середа", "Четвер", "П'ятниця"]
+
+MEALS = ["Сніданок солоний", "Сніданок солодкий", "Обід", "Полуденок"]
+
+@router.message(F.text == "Замовлення")
+async def start_order(message: Message, state: FSMContext):
+    builder = InlineKeyboardBuilder()
+    for i, (label, _) in enumerate(WEEKS):
+        builder.button(text=label, callback_data=f"week_{i}")
+    builder.adjust(2)  # по 2 кнопки в ряд
+    await state.set_state(OrderStates.choosing_week)
+    await message.answer("📆 Оберіть тиждень:", reply_markup=builder.as_markup())
+
+@router.callback_query(F.data.startswith("week_"))
+async def week_chosen(callback: CallbackQuery, state: FSMContext):
+    week_index = int(callback.data.split("_")[1])
+    await state.update_data(week=WEEKS[week_index][0])
+    await callback.message.answer(f"✅ Ви обрали: {WEEKS[week_index][0]}")
+    await callback.message.answer("(тут буде вибір днів та харчування — буде в наступной частині)")
+    await callback.answer()
