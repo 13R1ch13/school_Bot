@@ -12,6 +12,7 @@ from handlers import order
 from handlers.order import (
     OrderStates,
     child_chosen,
+    other_week,
     week_chosen,
     day_chosen,
     meal_chosen,
@@ -75,6 +76,10 @@ def test_order_state_transitions(monkeypatch):
 
         cb = DummyCallbackQuery("", message)
         await child_chosen(cb, ChildCB(id=5), fsm)
+        assert fsm.state == OrderStates.choosing_day
+
+        cb = DummyCallbackQuery("other_week", message)
+        await other_week(cb, fsm)
         assert fsm.state == OrderStates.choosing_week
 
         cb = DummyCallbackQuery("week_0", message)
@@ -105,6 +110,8 @@ def test_confirmation_text(monkeypatch):
 
         cb = DummyCallbackQuery("", message)
         await child_chosen(cb, ChildCB(id=5), fsm)
+        cb = DummyCallbackQuery("other_week", message)
+        await other_week(cb, fsm)
         cb = DummyCallbackQuery("week_0", message)
         await week_chosen(cb, fsm)
         cb = DummyCallbackQuery("day_0", message)

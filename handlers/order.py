@@ -2,6 +2,7 @@ from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from aiogram.utils.keyboard import InlineKeyboardBuilder
+from datetime import date, datetime
 
 from db.database import (
     get_parent,
@@ -31,6 +32,17 @@ DAYS = ["Понеділок", "Вівторок", "Середа", "Четвер"
 MEALS = ["Сніданок солоний", "Сніданок солодкий", "Обід", "Полуденок"]
 
 
+def _current_week() -> str:
+    today = date.today()
+    for label, period in WEEKS:
+        start_str, end_str = period.split(" – ")
+        start = datetime.strptime(start_str, "%d.%m.%Y").date()
+        end = datetime.strptime(end_str, "%d.%m.%Y").date()
+        if start <= today <= end:
+            return label
+    return WEEKS[0][0]
+
+
 @router.message(F.text.casefold() == "замовлення")
 async def start_order(message: Message, state: FSMContext):
     parent = get_parent(message.from_user.id)
@@ -43,7 +55,8 @@ async def start_order(message: Message, state: FSMContext):
         return
     if len(children) == 1:
         await state.update_data(child_ids=[children[0]["id"]])
-        await _ask_week(message, state)
+        await state.update_data(week=_current_week())
+        await _ask_day(message, state)
     else:
         await state.set_state(OrderStates.choose_child)
         await message.answer("Оберіть дитину:", reply_markup=children_kb(children))
@@ -58,7 +71,8 @@ async def child_chosen(call: CallbackQuery, callback_data: ChildCB, state: FSMCo
     else:
         ids = [callback_data.id]
     await state.update_data(child_ids=ids)
-    await _ask_week(call.message, state)
+    await state.update_data(week=_current_week())
+    await _ask_day(call.message, state)
     await call.answer()
 
 
@@ -75,12 +89,27 @@ async def _ask_week(message: Message, state: FSMContext):
 async def week_chosen(callback: CallbackQuery, state: FSMContext):
     week_index = int(callback.data.split("_")[1])
     await state.update_data(week=WEEKS[week_index][0])
+    await _ask_day(callback.message, state)
+    await callback.answer()
+
+
+async def _ask_day(message: Message, state: FSMContext):
+    data = await state.get_data()
     builder = InlineKeyboardBuilder()
     for i, label in enumerate(DAYS):
         builder.button(text=label, callback_data=f"day_{i}")
+    builder.button(text="інша неділя", callback_data="other_week")
     builder.adjust(2)
     await state.set_state(OrderStates.choosing_day)
-    await callback.message.answer("🗓 Оберіть день:", reply_markup=builder.as_markup())
+    await message.answer(
+        f"🗓 Оберіть день (тиждень {data.get('week')}):",
+        reply_markup=builder.as_markup(),
+    )
+
+
+@router.callback_query(F.data == "other_week", OrderStates.choosing_day)
+async def other_week(callback: CallbackQuery, state: FSMContext):
+    await _ask_week(callback.message, state)
     await callback.answer()
 
 
