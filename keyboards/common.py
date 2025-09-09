@@ -1,7 +1,7 @@
 
 from aiogram.utils.keyboard import ReplyKeyboardBuilder, InlineKeyboardBuilder
 from aiogram.filters.callback_data import CallbackData
-from typing import Iterable, Mapping
+from typing import Iterable, Mapping, Sequence
 
 def start_menu():
     kb = ReplyKeyboardBuilder()
@@ -47,11 +47,17 @@ def children_kb(children: Iterable[Mapping]):
 
     The input items might be :class:`sqlite3.Row` objects or plain dictionaries.
     ``sqlite3.Row`` does not support membership testing for keys, so each item is
-    converted to a ``dict`` and validated explicitly.
+    converted to a ``dict`` and validated explicitly.  When more than one child is
+    supplied, an additional button allows applying the same order to all children
+    at once.
     """
 
+    # ``children`` may be any iterable; convert to a list to be able to check its
+    # length and iterate over it multiple times without exhausting it.
+    child_list: Sequence[Mapping] = list(children)
+
     b = InlineKeyboardBuilder()
-    for ch in children:
+    for ch in child_list:
         # ``sqlite3.Row`` behaves like both a sequence and a mapping, but "in" checks
         # values rather than column names.  Convert the record to a plain ``dict``
         # and ensure the required fields are present before constructing the button.
@@ -63,5 +69,14 @@ def children_kb(children: Iterable[Mapping]):
             text=ch_dict["full_name"],
             callback_data=ChildCB(id=ch_dict["id"]).pack(),
         )
+
+    if len(child_list) > 1:
+        # ``id=-1`` acts as a sentinel meaning the order should apply to all children
+        # registered for the parent.
+        b.button(
+            text="Однакове замовлення для всіх",
+            callback_data=ChildCB(id=-1).pack(),
+        )
+
     b.adjust(1)
     return b.as_markup()
