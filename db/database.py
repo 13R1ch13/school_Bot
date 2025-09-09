@@ -27,6 +27,18 @@ def init_db():
         class_label TEXT NOT NULL,
         FOREIGN KEY(parent_id) REFERENCES parents(id)
     );""")
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS orders (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        parent_id INTEGER NOT NULL,
+        child_id INTEGER NOT NULL,
+        week TEXT NOT NULL,
+        day TEXT NOT NULL,
+        meal TEXT NOT NULL,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(parent_id) REFERENCES parents(id),
+        FOREIGN KEY(child_id) REFERENCES children(id)
+    );""")
     conn.commit()
     conn.close()
 
@@ -64,6 +76,39 @@ def get_parent_children(parent_id: int):
     conn = connect()
     c = conn.cursor()
     c.execute("SELECT * FROM children WHERE parent_id=? ORDER BY id DESC", (parent_id,))
+    rows = c.fetchall()
+    conn.close()
+    return rows
+
+
+def add_order(parent_id: int, child_id: int, week: str, day: str, meal: str):
+    conn = connect()
+    c = conn.cursor()
+    c.execute(
+        "INSERT INTO orders (parent_id, child_id, week, day, meal) VALUES (?, ?, ?, ?, ?)",
+        (parent_id, child_id, week, day, meal),
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_parent_orders(parent_id: int):
+    conn = connect()
+    c = conn.cursor()
+    c.execute(
+        "SELECT * FROM orders WHERE parent_id=? ORDER BY created_at DESC", (parent_id,)
+    )
+    rows = c.fetchall()
+    conn.close()
+    return rows
+
+
+def get_child_orders(child_id: int):
+    conn = connect()
+    c = conn.cursor()
+    c.execute(
+        "SELECT * FROM orders WHERE child_id=? ORDER BY created_at DESC", (child_id,)
+    )
     rows = c.fetchall()
     conn.close()
     return rows
