@@ -1,6 +1,7 @@
 
 from aiogram.utils.keyboard import ReplyKeyboardBuilder, InlineKeyboardBuilder
 from aiogram.filters.callback_data import CallbackData
+from typing import Iterable, Mapping
 
 def start_menu():
     kb = ReplyKeyboardBuilder()
@@ -41,9 +42,12 @@ class ChildCB(CallbackData, prefix="ch"):
     id: int
 
 
-def children_kb(children):
+def children_kb(children: Iterable[Mapping]):
+    """Construct inline keyboard with children list ensuring proper callback data."""
     b = InlineKeyboardBuilder()
     for ch in children:
+        # Ensure each child dict contains required fields before building button
+        assert "id" in ch and "full_name" in ch, "child record must have id and full_name"
         b.button(text=ch["full_name"], callback_data=ChildCB(id=ch["id"]).pack())
     b.adjust(1)
     return b.as_markup()
