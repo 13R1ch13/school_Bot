@@ -13,8 +13,7 @@ from handlers.order import (
     OrderStates,
     child_chosen,
     week_chosen,
-    day_chosen,
-    meal_chosen,
+    day_meal_chosen,
     confirm_order,
 )
 from keyboards.common import ChildCB, ConfirmCB
@@ -79,14 +78,10 @@ def test_order_state_transitions(monkeypatch):
 
         cb = DummyCallbackQuery("week_0", message)
         await week_chosen(cb, fsm)
-        assert fsm.state == OrderStates.choosing_day
+        assert fsm.state == OrderStates.choosing_day_meal
 
-        cb = DummyCallbackQuery("day_0", message)
-        await day_chosen(cb, fsm)
-        assert fsm.state == OrderStates.choosing_meal
-
-        cb = DummyCallbackQuery("meal_0", message)
-        await meal_chosen(cb, fsm)
+        cb = DummyCallbackQuery("dm_0_0", message)
+        await day_meal_chosen(cb, fsm)
         assert fsm.state == OrderStates.confirming
 
     asyncio.run(scenario())
@@ -107,10 +102,8 @@ def test_confirmation_text(monkeypatch):
         await child_chosen(cb, ChildCB(id=5), fsm)
         cb = DummyCallbackQuery("week_0", message)
         await week_chosen(cb, fsm)
-        cb = DummyCallbackQuery("day_0", message)
-        await day_chosen(cb, fsm)
-        cb = DummyCallbackQuery("meal_0", message)
-        await meal_chosen(cb, fsm)
+        cb = DummyCallbackQuery("dm_0_0", message)
+        await day_meal_chosen(cb, fsm)
 
         assert message.answers[-1] == f"<b>{order.WEEKS[0][0]}</b>\\n{order.DAYS[0]} — {order.MEALS[0]}"
 

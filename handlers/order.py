@@ -27,6 +27,7 @@ WEEKS = [
 ]
 
 DAYS = ["Понеділок", "Вівторок", "Середа", "Четвер", "П'ятниця"]
+DAYS_SHORT = ["Пн", "Вт", "Ср", "Чт", "Пт"]
 
 MEALS = ["Сніданок солоний", "Сніданок солодкий", "Обід", "Полуденок"]
 
@@ -76,31 +77,22 @@ async def week_chosen(callback: CallbackQuery, state: FSMContext):
     week_index = int(callback.data.split("_")[1])
     await state.update_data(week=WEEKS[week_index][0])
     builder = InlineKeyboardBuilder()
-    for i, label in enumerate(DAYS):
-        builder.button(text=label, callback_data=f"day_{i}")
+    for day_idx, day_short in enumerate(DAYS_SHORT):
+        for meal_idx, meal_label in enumerate(MEALS):
+            text = f"{day_short} — {meal_label}"
+            builder.button(text=text, callback_data=f"dm_{day_idx}_{meal_idx}")
     builder.adjust(2)
-    await state.set_state(OrderStates.choosing_day)
-    await callback.message.answer("🗓 Оберіть день:", reply_markup=builder.as_markup())
+    await state.set_state(OrderStates.choosing_day_meal)
+    await callback.message.answer("🗓 Оберіть день та прийом їжі:", reply_markup=builder.as_markup())
     await callback.answer()
 
 
-@router.callback_query(F.data.startswith("day_"), OrderStates.choosing_day)
-async def day_chosen(callback: CallbackQuery, state: FSMContext):
-    day_index = int(callback.data.split("_")[1])
-    await state.update_data(day=DAYS[day_index])
-    builder = InlineKeyboardBuilder()
-    for i, label in enumerate(MEALS):
-        builder.button(text=label, callback_data=f"meal_{i}")
-    builder.adjust(1)
-    await state.set_state(OrderStates.choosing_meal)
-    await callback.message.answer("🍽 Оберіть прийом їжі:", reply_markup=builder.as_markup())
-    await callback.answer()
-
-
-@router.callback_query(F.data.startswith("meal_"), OrderStates.choosing_meal)
-async def meal_chosen(callback: CallbackQuery, state: FSMContext):
-    meal_index = int(callback.data.split("_")[1])
-    await state.update_data(meal=MEALS[meal_index])
+@router.callback_query(F.data.startswith("dm_"), OrderStates.choosing_day_meal)
+async def day_meal_chosen(callback: CallbackQuery, state: FSMContext):
+    _, day_idx, meal_idx = callback.data.split("_")
+    day_index = int(day_idx)
+    meal_index = int(meal_idx)
+    await state.update_data(day=DAYS[day_index], meal=MEALS[meal_index])
     data = await state.get_data()
     summary = f"<b>{data.get('week')}</b>\\n{data.get('day')} — {data.get('meal')}"
     await state.set_state(OrderStates.confirming)
