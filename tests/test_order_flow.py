@@ -72,13 +72,25 @@ def test_order_state_transitions(monkeypatch):
 
         monkeypatch.setattr(order, "get_parent", lambda user_id: {"id": 1})
         monkeypatch.setattr(order, "get_parent_children", lambda parent_id: [{"id": 5}])
+        monkeypatch.setattr(
+            order,
+            "get_menu_for_week",
+            lambda week: {"Понеділок": [{"meal": "A"}]},
+        )
+        monkeypatch.setattr(
+            order,
+            "get_meal_info",
+            lambda week, day, meal: {"description": "d", "price": 1},
+        )
 
         cb = DummyCallbackQuery("", message)
         await child_chosen(cb, ChildCB(id=5), fsm)
         assert fsm.state == OrderStates.choosing_week
 
         cb = DummyCallbackQuery("week_0", message)
+        prev_len = len(message.answers)
         await week_chosen(cb, fsm)
+        assert message.answers[prev_len].startswith("Меню на тиждень")
         assert fsm.state == OrderStates.choosing_day
 
         cb = DummyCallbackQuery("day_0", message)
@@ -102,6 +114,12 @@ def test_confirmation_text(monkeypatch):
 
         monkeypatch.setattr(order, "get_parent", lambda user_id: {"id": 1})
         monkeypatch.setattr(order, "get_parent_children", lambda parent_id: [{"id": 5}])
+        monkeypatch.setattr(order, "get_menu_for_week", lambda week: {})
+        monkeypatch.setattr(
+            order,
+            "get_meal_info",
+            lambda week, day, meal: {"description": "Desc", "price": 5},
+        )
 
         cb = DummyCallbackQuery("", message)
         await child_chosen(cb, ChildCB(id=5), fsm)
@@ -112,7 +130,10 @@ def test_confirmation_text(monkeypatch):
         cb = DummyCallbackQuery("meal_0", message)
         await meal_chosen(cb, fsm)
 
-        assert message.answers[-1] == f"<b>{order.WEEKS[0][0]}</b>\\n{order.DAYS[0]} — {order.MEALS[0]}"
+        assert (
+            message.answers[-1]
+            == f"<b>{order.WEEKS[0][0]}</b>\\n{order.DAYS[0]} — {order.MEALS[0]}\n\nDesc\nЦіна: 5 грн"
+        )
 
     asyncio.run(scenario())
 
@@ -143,3 +164,4 @@ def test_add_order_called(monkeypatch):
         ]
 
     asyncio.run(scenario())
+

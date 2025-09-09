@@ -39,6 +39,16 @@ def init_db():
         FOREIGN KEY(parent_id) REFERENCES parents(id),
         FOREIGN KEY(child_id) REFERENCES children(id)
     );""")
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS menu (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        week TEXT NOT NULL,
+        day TEXT NOT NULL,
+        meal TEXT NOT NULL,
+        description TEXT,
+        price REAL,
+        UNIQUE(week, day, meal)
+    );""")
     conn.commit()
     conn.close()
 
@@ -112,3 +122,52 @@ def get_child_orders(child_id: int):
     rows = c.fetchall()
     conn.close()
     return rows
+
+
+def add_menu_item(week: str, day: str, meal: str, description: str, price: float):
+    conn = connect()
+    c = conn.cursor()
+    c.execute(
+        """
+        INSERT OR REPLACE INTO menu (week, day, meal, description, price)
+        VALUES (?, ?, ?, ?, ?)
+        """,
+        (week, day, meal, description, price),
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_menu_for_week(week: str):
+    conn = connect()
+    c = conn.cursor()
+    c.execute(
+        "SELECT day, meal, description, price FROM menu WHERE week=? ORDER BY id",
+        (week,),
+    )
+    rows = c.fetchall()
+    conn.close()
+    menu = {}
+    for row in rows:
+        menu.setdefault(row["day"], []).append(
+            {
+                "meal": row["meal"],
+                "description": row["description"],
+                "price": row["price"],
+            }
+        )
+    return menu
+
+
+def get_meal_info(week: str, day: str, meal: str):
+    conn = connect()
+    c = conn.cursor()
+    c.execute(
+        "SELECT description, price FROM menu WHERE week=? AND day=? AND meal=?",
+        (week, day, meal),
+    )
+    row = c.fetchone()
+    conn.close()
+    if row:
+        return {"description": row["description"], "price": row["price"]}
+    return {"description": "", "price": None}

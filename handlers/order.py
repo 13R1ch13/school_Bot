@@ -7,6 +7,8 @@ from db.database import (
     get_parent,
     get_parent_children,
     add_order,
+    get_menu_for_week,
+    get_meal_info,
 )
 from keyboards.common import (
     children_kb,
@@ -74,7 +76,15 @@ async def _ask_week(message: Message, state: FSMContext):
 @router.callback_query(F.data.startswith("week_"), OrderStates.choosing_week)
 async def week_chosen(callback: CallbackQuery, state: FSMContext):
     week_index = int(callback.data.split("_")[1])
-    await state.update_data(week=WEEKS[week_index][0])
+    week_label = WEEKS[week_index][0]
+    await state.update_data(week=week_label)
+    menu = get_menu_for_week(week_label)
+    if menu:
+        lines = ["Меню на тиждень:"]
+        for day, items in menu.items():
+            meal_names = ", ".join(item["meal"] for item in items)
+            lines.append(f"{day}: {meal_names}")
+        await callback.message.answer("\n".join(lines))
     builder = InlineKeyboardBuilder()
     for i, label in enumerate(DAYS):
         builder.button(text=label, callback_data=f"day_{i}")
@@ -102,7 +112,12 @@ async def meal_chosen(callback: CallbackQuery, state: FSMContext):
     meal_index = int(callback.data.split("_")[1])
     await state.update_data(meal=MEALS[meal_index])
     data = await state.get_data()
+    info = get_meal_info(data.get("week"), data.get("day"), data.get("meal"))
     summary = f"<b>{data.get('week')}</b>\\n{data.get('day')} — {data.get('meal')}"
+    if info.get("description"):
+        summary += f"\n\n{info['description']}"
+    if info.get("price") is not None:
+        summary += f"\nЦіна: {info['price']} грн"
     await state.set_state(OrderStates.confirming)
     await callback.message.answer(summary, reply_markup=confirm_kb())
     await callback.answer()
